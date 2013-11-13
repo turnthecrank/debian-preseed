@@ -1,0 +1,26 @@
+#!/bin/sh
+# get the IP address for this node
+MYIP=`hostname -I`
+
+# get the hostname in the DNS PTR record for this machine's IP 
+FQDN=`dig -x $MYIP | grep ANSWER -A1 | grep PTR | cut -f4 | cut -d. -f1-4`
+
+# Extract the hostname from the FQDN, enforcing the birc- prefix while removing any 
+# existing "birc- or "phhp-" prefix. The removal of the phhp-prefix is need only 
+# until the birc machines can be moved to PTR records of the form birc-NAME.ahc.ufl.edu
+MYHOSTNAME=`echo $FQDN | cut -d. -f1 | sed 's/^\(birc-\|phhp-\|\)\([a-z0-9]\+\)/birc-\2/'`
+
+# Set the domain name to ahc.ufl.edu.  This is what we want to see for all ahc-managed hosts.  
+MYDOMAINNAME="ahc.ufl.edu"
+
+# Create a new /etc/hosts file 
+cat /etc/hosts | grep -v 127.0.1.1 | grep -v 127.0.0.1 | grep -v $MYIP > /tmp/h.txt
+echo $MYIP $MYHOSTNAME.$MYDOMAINNAME $MYHOSTNAME >> /tmp/h.txt
+echo 127.0.0.1 localhost.localdomain localhost >> /tmp/h.txt
+chmod 544 /tmp/h.txt
+mv -f /tmp/h.txt /etc/hosts
+
+# Create a new /etc/hostname file and restart networking
+hostname $MYHOSTNAME
+echo $MYHOSTNAME > /etc/hostname
+/etc/init.d/network-manager restart
